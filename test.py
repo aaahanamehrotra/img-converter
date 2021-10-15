@@ -3,10 +3,10 @@ import streamlit as st
 from PIL import Image
 import string
 import random
+from convertor import blur_img, convert_to_grayscale, gen_name, highlight_edges, invert_colors, invert_grayscale
 import cv2
 import numpy as np
-
-N = 7
+from convertor import *
 
 st.title('Imajify')
 file_verified = False
@@ -15,12 +15,9 @@ file_or_link = st.radio(
     "Upload image...",
     ('Link', 'Upload file'))
 
-st.write(file_or_link)
-res = str(''.join(random.choices(string.ascii_uppercase +
-                                         string.digits, k=N)))
-file_name = f"{res}.png"
-if file_or_link == 'Upload file':
+file_name = gen_name()
 
+if file_or_link == 'Upload file':
     uploaded_file = st.file_uploader("Choose a file")
     if uploaded_file:
         try:
@@ -33,8 +30,6 @@ if file_or_link == 'Upload file':
 elif file_or_link == 'Link':
     uploaded_file = st.text_input('Link', '')
     if uploaded_file:
-        
-        # st.write(file_name)
         try:
             with st.spinner('Processing Image'):
                 urllib.request.urlretrieve(
@@ -53,49 +48,29 @@ if file_verified:
 
 img_type_to = st.radio(
     "Convert Image to ...",
-    ('Inverted Grayscale', 'GrayScale', 'Cartoon', 'Oil Painting', 'Sketch', 'Highlight Edges', 'Blur'))
+    ('Oil Painting','Inverted Grayscale', 'GrayScale', 'Cartoon', 'Sketch', 'Highlight Edges'))
+    # 'Oil Painting', 'Blur'
 
 if file_verified:
     if img_type_to == 'GrayScale':
-        grayed = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        st.image(grayed, caption='Final Image',
-        use_column_width='always')
+        grayed = convert_to_grayscale(img)
+        st.image(grayed, caption='Final Image', use_column_width='always')
     elif img_type_to == 'Inverted Grayscale':
-        grayed = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        inverted = cv2.bitwise_not(grayed)
-        st.image(inverted, caption='Final Image',
-        use_column_width='always')
+        grayed = convert_to_grayscale(img)
+        inverted = invert_grayscale(grayed)
+        st.image(inverted, caption='Final Image', use_column_width='always')
     elif img_type_to == 'Sketch':
-        grayed = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        inverted = cv2.bitwise_not(grayed)
-        blurred = cv2.GaussianBlur(inverted, (19, 19), sigmaX=0, sigmaY=0)
+        grayed = convert_to_grayscale(img)
+        inverted = invert_grayscale(grayed)
+        blurred = blur_img(inverted)
         final = cv2.divide(grayed, 255 - blurred, scale=256)
-        st.image(final, caption='Final Image',
-        use_column_width='always')
+        st.image(final, caption='Final Image', use_column_width='always')
     elif img_type_to == 'Highlight Edges':
-        lineSize=7
-        blurValue=7
-        gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-        grayBlur=cv2.medianBlur(gray,blurValue)
-        edges=cv2.adaptiveThreshold(grayBlur,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,lineSize,blurValue)
-        st.image(edges, caption='Final Image',
-        use_column_width='always')
+        edges = highlight_edges(img)
+        st.image(edges, caption='Final Image', use_column_width='always')
     elif img_type_to == 'Cartoon':
-        # create edges
-        lineSize=7
-        blurValue=7
-        gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-        grayBlur=cv2.medianBlur(gray,blurValue)
-        edges=cv2.adaptiveThreshold(grayBlur,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,lineSize,blurValue)
-        # invert crs
-        colors=9
-        data=np.float32(img).reshape((-1,3))
-        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,20,0.001)
-        ret,label,center=cv2.kmeans(data,colors,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
-        center=np.uint8(center)
-        result=center[label.flatten()]
-        result=result.reshape(img.shape)
-        cartoonImage2=cv2.bitwise_and(result,result,mask=edges)
-        st.image(cartoonImage2, caption='Final Image',
-        use_column_width='always')
+        edges = highlight_edges(img)
+        result = invert_colors(img)
+        cartoonImage = cv2.bitwise_and(result,result,mask=edges)
+        st.image(cartoonImage , caption='Final Image', use_column_width='always')
 
